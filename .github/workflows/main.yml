@@ -40,7 +40,7 @@ jobs:
     - name: Prepare release
       run: |
         cd ~/blender-git
-        tar -cvf blender_build.tar.gz blender/build_linux
+        tar -cvf blender_build.tar.gz build_linux
       
     - name: Publish to GitHub
       id: release
