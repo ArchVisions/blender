@@ -19,24 +19,25 @@ jobs:
 
     - name: Install build dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential cmake libx11-dev libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libglew-dev libfontconfig1-dev
+        sudo apt update
+        sudo apt install build-essential git git-lfs subversion cmake libx11-dev libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev
+        sudo apt install libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev linux-libc-dev
 
-    - name: Clone Blender repository
+    - name: Clone Blender repository and libraries
       run: |
-        git clone https://github.com/blender/blender.git
-        cd blender
-        git submodule update --init --recursive
-
+          mkdir ~/blender-git
+          cd ~/blender-git
+          git clone https://projects.blender.org/blender/blender.git
+          cd ~/blender-git/blender
+          ./build_files/utils/make_update.py --use-linux-libraries
+          
     - name: Build Blender
       run: |
-        cd blender
-        mkdir build
-        cd build
-        cmake ..
+        cd ~/blender-git/blender         
+        make update
         make -j$(nproc)
 
     - name: Run tests
       run: |
-        cd blender/build
+        cd build
         make test
