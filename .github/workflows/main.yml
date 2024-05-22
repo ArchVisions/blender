@@ -15,7 +15,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Install build dependencies
       run: |
@@ -46,7 +46,7 @@ jobs:
       id: release
       uses: softprops/action-gh-release@v2
       with:
-        files: ~/blender-git/blender_build.tar.gz
+        files: blender_build.tar.gz
         name: Blender_build_${{ github.run_number }}
         tag_name: ${{ github.run_number }}
       env:
