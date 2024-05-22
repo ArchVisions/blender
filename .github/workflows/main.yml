@@ -27,7 +27,7 @@ jobs:
       run: |
           mkdir ~/blender-git
           cd ~/blender-git
-          git clone https://projects.blender.org/blender/blender.git
+          git clone https://github.com/blender/blender.git
           cd ~/blender-git/blender
           ./build_files/utils/make_update.py --use-linux-libraries
           
