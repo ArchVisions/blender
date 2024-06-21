@@ -1,0 +1,47 @@
+name: Build Blender (TAR Build Linux Bin)
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+  
+jobs:
+  build_blender:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install build dependencies
+      run: |
+        sudo apt update
+        sudo apt install build-essential git git-lfs subversion cmake libx11-dev libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev
+        sudo apt install libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev linux-libc-dev
+    - name: Clone Blender repository and libraries
+      run: |
+          mkdir ~/blender-git
+          cd ~/blender-git
+          git clone https://github.com/blender/blender.git
+          cd ~/blender-git/blender
+          ./build_files/utils/make_update.py --use-linux-libraries
+          
+    - name: Build Blender
+      run: |
+        cd ~/blender-git/blender         
+        make update
+        make -j$(nproc)
+    - name: Prepare release
+      run: |
+        cd ~/blender-git/build_linux
+        tar -cvf blender_build.tar.gz bin
+      
+    - name: Upload Build
+      uses: actions/upload-artifact@v4
+      with:
+        name: Blender-Release-test
+        path: ~/blender-git/build_linux/blender_build.tar.gz
