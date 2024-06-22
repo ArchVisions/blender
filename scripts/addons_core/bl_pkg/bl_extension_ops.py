@@ -323,6 +323,29 @@ def operator_finished_result(operator_result):
     return None
 
 
+def pkg_manifest_params_compatible_or_error_for_this_system(
+    *,
+    blender_version_min,  # `str`
+    blender_version_max,  # `str`
+    platforms,  # `List[str]`
+):  # `Optional[str]`
+    # Return true if the parameters are compatible with this system.
+    from .bl_extension_utils import (
+        pkg_manifest_params_compatible_or_error,
+        platform_from_this_system,
+    )
+    return pkg_manifest_params_compatible_or_error(
+        # Parameters.
+        blender_version_min=blender_version_min,
+        blender_version_max=blender_version_max,
+        platforms=platforms,
+        # This system.
+        this_platform=platform_from_this_system(),
+        this_blender_version=bpy.app.version,
+        error_fn=print,
+    )
+
+
 # A named-tuple copy of `context.preferences.extensions.repos` (`bpy.types.UserExtensionRepo`).
 # This is done for the following reasons.
 #
@@ -652,8 +675,9 @@ def _pkg_marked_by_repo(pkg_manifest_all):
         # While this should be prevented, any marked packages out of the range will cause problems, skip them.
         if repo_index >= len(pkg_manifest_all):
             continue
+        if (pkg_manifest := pkg_manifest_all[repo_index]) is None:
+            continue
 
-        pkg_manifest = pkg_manifest_all[repo_index]
         item = pkg_manifest.get(pkg_id)
         if item is None:
             continue
@@ -2360,23 +2384,37 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
         url = self.url
         print("DROP URL:", url)
 
-        # First check if this is part of a disabled repository.
         url, url_params = url_parse_for_blender(url)
-        remote_url = url_params.get("repository")
-        repo_from_url, repo_index_from_url = (
-            (None, -1) if remote_url is None else
-            _preferences_repo_find_by_remote_url(context, remote_url)
-        )
 
-        if repo_from_url:
-            if not repo_from_url.enabled:
-                bpy.ops.extensions.repo_enable_from_drop('INVOKE_DEFAULT', repo_index=repo_index_from_url)
-                return {'CANCELLED'}
-            repo_form_url_name = repo_from_url.name
-        else:
-            repo_form_url_name = ""
+        # Check if the extension is compatible with the current platform.
+        # These values aren't required to be set, it just gives a more useful message than
+        # failing as if the extension is not known (which happens because incompatible extensions are filtered out).
+        #
+        # Do this first because other issues may prompt the user to setup a new repository which is all for naught
+        # if the extension isn't compatible with this system.
+        if isinstance(error := pkg_manifest_params_compatible_or_error_for_this_system(
+                blender_version_min=url_params.get("blender_version_min", ""),
+                blender_version_max=url_params.get("blender_version_max", ""),
+                platforms=[platform for platform in url_params.get("platforms", "").split(",") if platform],
+        ), str):
+            self.report({'ERROR'}, iface_("The extension is incompatible with this system:\n{:s}").format(error))
+            return {'CANCELLED'}
+        del error
 
-        del repo_from_url, repo_index_from_url
+        # Check if this is part of a disabled repository.
+        repo_form_url_name = ""
+        if remote_url := url_params.get("repository"):
+            repo_from_url, repo_index_from_url = (
+                (None, -1) if remote_url is None else
+                _preferences_repo_find_by_remote_url(context, remote_url)
+            )
+
+            if repo_from_url:
+                if not repo_from_url.enabled:
+                    bpy.ops.extensions.repo_enable_from_drop('INVOKE_DEFAULT', repo_index=repo_index_from_url)
+                    return {'CANCELLED'}
+                repo_form_url_name = repo_from_url.name
+            del repo_from_url, repo_index_from_url
 
         _preferences_ensure_sync()
 
@@ -2394,9 +2432,10 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
                 # As some point we may want to sync only compatible extension meta-data
                 # (to reduce the network overhead of incompatible packages).
                 # So don't assume we have global knowledge of every URL.
-                # One possible solution is to include the version range & platforms in the URL
-                # as we already do for the repository, allowing us to trigger an report instantly
-                # when an incompatible extension is dropped. see: `extensions-website/#190`.
+                #
+                # Rely on the version range on platform being included in the URL
+                # (see `pkg_manifest_params_compatible_or_error_for_this_system`).
+                # While this isn't a strict requirement for the server, we can assume they exist for the common case.
                 self.report(
                     {'ERROR'},
                     iface_(
@@ -2675,7 +2714,7 @@ class EXTENSIONS_OT_package_mark_set(Operator):
 
 class EXTENSIONS_OT_package_mark_clear(Operator):
     bl_idname = "extensions.package_mark_clear"
-    bl_label = "Mark Package"
+    bl_label = "Clear Marked Package"
 
     pkg_id: rna_prop_pkg_id
     repo_index: rna_prop_repo_index
@@ -2685,6 +2724,37 @@ class EXTENSIONS_OT_package_mark_clear(Operator):
         blender_extension_mark.discard(key)
         _preferences_ui_redraw()
         return {'FINISHED'}
+
+
+class EXTENSIONS_OT_package_mark_set_all(Operator):
+    bl_idname = "extensions.package_mark_set_all"
+    bl_label = "Mark All Packages"
+
+    def execute(self, _context):
+        repo_cache_store = repo_cache_store_ensure()
+        for repo_index, (
+                pkg_manifest_remote,
+                pkg_manifest_local,
+        ) in enumerate(zip(
+            repo_cache_store.pkg_manifest_from_remote_ensure(error_fn=print),
+            repo_cache_store.pkg_manifest_from_local_ensure(error_fn=print),
+        )):
+            if pkg_manifest_remote is not None:
+                for pkg_id in pkg_manifest_remote.keys():
+                    blender_extension_mark.add((pkg_id, repo_index))
+            if pkg_manifest_local is not None:
+                for pkg_id in pkg_manifest_local.keys():
+                    blender_extension_mark.add((pkg_id, repo_index))
+        _preferences_ui_redraw()
+        return {'FINISHED'}
+
+
+class EXTENSIONS_OT_package_mark_clear_all(Operator):
+    bl_idname = "extensions.package_mark_clear_all"
+    bl_label = "Clear All Marked Packages"
+
+    def execute(self, _context):
+        blender_extension_mark.clear()
 
 
 class EXTENSIONS_OT_package_show_set(Operator):
@@ -3010,6 +3080,8 @@ classes = (
     EXTENSIONS_OT_package_show_clear,
     EXTENSIONS_OT_package_mark_set,
     EXTENSIONS_OT_package_mark_clear,
+    EXTENSIONS_OT_package_mark_set_all,
+    EXTENSIONS_OT_package_mark_clear_all,
     EXTENSIONS_OT_package_show_settings,
 
     EXTENSIONS_OT_package_obselete_marked,
