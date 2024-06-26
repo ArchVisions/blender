@@ -1,8 +1,8 @@
-name: Build Blender 7:30 UTC
+name: Build Blender 19:30 UTC
 
 on:
   schedule:
-    - cron: '30 7 * * 1-6'
+    - cron: '30 19 * * 1-6'
   workflow_dispatch:
   
 jobs:
