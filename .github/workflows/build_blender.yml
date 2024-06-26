@@ -1,8 +1,8 @@
 name: Build Blender (TAR Build Linux Bin)
 
 on:
- schedule: '30 8 * * 1-7'
-  workflow_dispatch:
+schedule: '30 8 * * 1-7'
+workflow_dispatch:
   
 jobs:
   build_blender:
