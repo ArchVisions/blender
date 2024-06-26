@@ -1,4 +1,4 @@
-name: Build Blender (TAR Build Linux Bin)
+name: Build Blender 12:00 UTC
 
 on:
   schedule:
