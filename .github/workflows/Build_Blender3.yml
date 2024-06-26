@@ -1,4 +1,4 @@
-name: Build Blender 14:30 UTC
+name: Build Blender Sunday 14:30 UTC
 
 on:
   schedule:
