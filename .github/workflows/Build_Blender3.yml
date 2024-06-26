@@ -24,7 +24,7 @@ jobs:
         cd ~/blender-git
         git clone https://github.com/blender/blender.git
         cd blender
-        ./build_files/build_environment/install_deps.sh
+        ./build_files/utils/make_update.py --use-linux-libraries
           
     - name: Build Blender
       run: |
