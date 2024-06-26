@@ -1,12 +1,7 @@
 name: Build Blender (TAR Build Linux Bin)
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+ schedule: '30 8 * * 1-7'
   workflow_dispatch:
   
 jobs:
