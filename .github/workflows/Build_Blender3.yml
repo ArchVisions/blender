@@ -1,0 +1,42 @@
+name: Build Blender 7:30 UTC
+
+on:
+  schedule:
+    - cron: '30 7 * * 1-6'
+  workflow_dispatch:
+  
+jobs:
+  build_blender:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install build dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential git git-lfs subversion cmake libx11-dev libxxf86vm-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libegl-dev libwayland-dev wayland-protocols libxkbcommon-dev libdbus-1-dev libc6-dev
+
+    - name: Clone Blender repository and libraries
+      run: |
+        mkdir ~/blender-git
+        cd ~/blender-git
+        git clone https://github.com/blender/blender.git
+        cd blender
+        ./build_files/build_environment/install_deps.sh
+          
+    - name: Build Blender
+      run: |
+        make -j$(nproc)
+
+    - name: Prepare release
+      run: |
+        cd ~/blender-git
+        tar -czvf blender_build.tar.gz blender
+      
+    - name: Upload Build
+      uses: actions/upload-artifact@v4
+      with:
+        name: Blender-Release-test
+        path: ~/blender-git/blender_build.tar.gz
