@@ -36,7 +36,7 @@ jobs:
         tar -czvf blender_build.tar.gz blender
       
     - name: Upload Build
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: Blender-Release-test
         path: ~/blender-git/blender_build.tar.gz
